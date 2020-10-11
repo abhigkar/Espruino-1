@@ -1,3 +1,4 @@
 [submodule "targetlibs/nrf5x_11"]
 	path = targetlibs/nrf5x_11
 	url = https://github.com/abhigkar/targetlibs_nrf5x_11.git
+	ignore = dirty
