@@ -40,6 +40,7 @@ gcc-arm-none-eabi*
 *.c#
 /function_keywords.js
 /functions.html
+/targetlibs/nrf5x_11
 /targetlibs/nrf5x_12/examples
 /targetlibs/nrf5x_12/documentation/
 /targetlibs/nrf5x_14
