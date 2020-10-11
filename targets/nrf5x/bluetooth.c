@@ -2508,6 +2508,11 @@ void jsble_restart_softdevice() {
   jshUtilTimerDisable(); // don't want the util timer firing during this!
   JsSysTime lastTime = jshGetSystemTime();
   jsble_kill();
+
+  //Hack to access NVMC area to update memory address
+  jsvUnLock(jspEvaluate("if(typeof(NRF.onRestart)=='function')NRF.onRestart();",true));
+  //Hack end
+  
   jsble_init();
   // reinitialise everything
   jswrap_ble_reconfigure_softdevice();
