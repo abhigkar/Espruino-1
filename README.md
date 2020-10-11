@@ -1,3 +1,5 @@
+## This is not the official Espruino repo. Please check https://github.com/espruino/Espruino
+
 Espruino JavaScript for Microcontrollers
 ========================================
 <pre>
