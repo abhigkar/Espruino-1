@@ -19,6 +19,8 @@
 # make lst           # Make listing files
 # make boardjson     # JSON file for a board
 # make docs          # Reference HTML for a board
+# make varsonly      # Dump Makefile vars - good for debugging
+# make wrappersources # Show the WRAPPERSOURCES - list of C files that contain functions to load into Espruino environment
 #
 # Also:
 #
@@ -43,14 +45,20 @@
 #                         # UNSUPPORTEDMAKE=/home/mydir/unsupportedCommands
 # PROJECTNAME=myBigProject# Sets projectname
 # BLACKLIST=fileBlacklist # Removes javascript commands given in a file from compilation and therefore from project defined firmware
-#                         # is used in build_jswrapper.py
+#                         # is used in build_jswrapper.py - of the form [{class,name}...]
 #                         # BLACKLIST=/home/mydir/myBlackList
 # VARIABLES=1700          # Sets number of variables for project defined firmware. This parameter can be dangerous, be careful before changing.
 #                         # used in build_platform_config.py
-# NO_COMPILE=1            # skips compiling and linking part, used to echo WRAPPERSOURCES only
-# RTOS=1                  # adds RTOS functions, available only for ESP32 (yet)
+#
+# -- STM32 Only
+# PAD_FOR_BOOTLOADER=1    # Pad the binary out with 0xFF where the bootloader should be (allows the Web IDE to flash the binary)
+#
+# -- NRF52 Only
+# INCLUDE_BLANK_STORAGE=1 # Include storage inside hex, so firmware updates remove any saved code
 # DFU_UPDATE_BUILD=1      # Uncomment this to build Espruino for a device firmware update over the air (nRF52).
-# PAD_FOR_BOOTLOADER=1    # When building for Espruino STM32 boards, pad the binary out with 0xFF where the bootloader should be (allows the Web IDE to flash the binary)
+#
+# -- ESP32 Only
+# RTOS=1                  # adds RTOS functions, available only for ESP32 
 
 include make/sanitycheck.make
 
@@ -399,6 +407,11 @@ ifdef USE_LCD_ST7789_8BIT
   SOURCES += libs/graphics/lcd_st7789_8bit.c
 endif
 
+ifdef USE_LCD_MEMLCD
+  DEFINES += -DUSE_LCD_MEMLCD
+  SOURCES += libs/graphics/lcd_memlcd.c
+endif
+
 ifdef USE_LCD_SPI_UNBUF
   DEFINES += -DUSE_LCD_SPI_UNBUF
   WRAPPERSOURCES += libs/graphics/lcd_spi_unbuf.c
@@ -711,6 +724,11 @@ else
         Q=@
   export SILENT=1
 endif
+ifdef BLACKLIST
+  # to allow blacklist to take effect if defined
+  # inside a BOARD.py file
+  export BLACKLIST
+endif
 
 # =============================================================================
 # =============================================================================
@@ -756,11 +774,13 @@ $(PLATFORM_CONFIG_FILE): boards/$(BOARD).py scripts/build_platform_config.py
 	@echo Generating platform configs
 	$(Q)python scripts/build_platform_config.py $(BOARD) $(HEADERFILENAME)
 
-# skips compiling and linking, if NO_COMPILE is defined
-# Generation of temporary files and setting of wrappersources is already done this moment
-ifndef NO_COMPILE
-
+# If realpath exists, use relative paths
+ifneq ("$(shell realpath --version > /dev/null;echo "$$?")","0")
 compile=$(CC) $(CFLAGS) $< -o $@
+else
+# when macros use __FILE__ this stops us including the whole build path
+compile=$(CC) $(CFLAGS) $(shell realpath --relative-to $(shell pwd) $<) -o $@
+endif
 
 link=$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
@@ -806,11 +826,6 @@ else # ARM/etc, so generate bin, etc ---------------------------
 include make/targets/ARM.make
 endif	    # ---------------------------------------------------
 
-else # NO_COMPILE
-# log WRAPPERSOURCES to help Firmware creation tool
-$(info WRAPPERSOURCES=$(WRAPPERSOURCES));
-endif
-
 lst: $(PROJ_NAME).lst
 
 clean:
@@ -824,6 +839,9 @@ clean:
 	$(Q)rm -f $(PROJ_NAME).bin
 	$(Q)rm -f $(PROJ_NAME).srec
 	$(Q)rm -f $(PROJ_NAME).lst
+
+wrappersources:
+	$(info WRAPPERSOURCES=$(WRAPPERSOURCES))
 
 # start make like this "make varsonly" to get all variables created and used during make process without compiling
 # this helps to better understand linking, or to find oddities

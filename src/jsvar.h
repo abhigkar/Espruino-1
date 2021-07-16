@@ -321,6 +321,8 @@ bool jsvMoreFreeVariablesThan(unsigned int vars); ///< Return whether there are 
 void jsvShowAllocated(); ///< Show what is still allocated, for debugging memory problems
 /// Try and allocate more memory - only works if RESIZABLE_JSVARS is defined
 void jsvSetMemoryTotal(unsigned int jsNewVarCount);
+/// Scan memory to find any JsVar that references a specific memory range, and if so update what it points to to p[oint to the new address
+void jsvUpdateMemoryAddress(size_t oldAddr, size_t length, size_t newAddr);
 
 
 // Note that jsvNew* don't REF a variable for you, but the do LOCK it
@@ -761,6 +763,9 @@ typedef struct {
  */
 bool jsvReadConfigObject(JsVar *object, jsvConfigObject *configs, int nConfigs);
 
+/** Using data in the format passed to jsvReadConfigObject, reconstruct a new object  */
+JsVar *jsvCreateConfigObject(jsvConfigObject *configs, int nConfigs);
+
 /// Is the variable an instance of the given class. Eg. `jsvIsInstanceOf(e, "Error")` - does a simple, non-recursive check that doesn't take account of builtins like String
 bool jsvIsInstanceOf(JsVar *var, const char *constructorName);
 
@@ -801,7 +806,7 @@ void jsvFree(void *ptr);
 #define JSV_GET_AS_CHAR_ARRAY(TARGET_PTR, TARGET_LENGTH, DATA)                \
   size_t TARGET_LENGTH = 0;                                                   \
   char *TARGET_PTR = jsvGetDataPointer(DATA, &TARGET_LENGTH);                 \
-  if (!TARGET_PTR) {                                                          \
+  if (DATA && !TARGET_PTR) {                                                          \
    TARGET_LENGTH = (size_t)jsvIterateCallbackCount(DATA);                     \
     if (TARGET_LENGTH+256 > jsuGetFreeStack()) {                              \
       jsExceptionHere(JSET_ERROR, "Not enough stack memory to decode data");  \

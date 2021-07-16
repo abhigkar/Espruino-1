@@ -21,6 +21,20 @@ static bool isNegativeZero(double x) {
   return *((long long*)&x) == *((long long*)&NEGATIVE_ZERO);
 }
 
+#ifdef SAVE_ON_FLASH_EXTREME
+// Replace `dsub` with a negate + add
+// GCC requires '-ffreestanding' option for this to work
+/*
+00039540 g     F .text	000006ec .hidden __aeabi_dadd
+0003a938 g     F .text	00000730 .hidden __aeabi_dsub
+*/
+double __aeabi_dsub(double a, double b) {
+  // flip top bit of 64 bit number (the sign bit)
+  ((uint32_t*)&b)[1] ^= 0x80000000; // assume little endian
+  return a + b;
+}
+#endif
+
 double jswrap_math_sin(double x) {
 #ifdef SAVE_ON_FLASH_MATH
   /* To save on flash, do our own sin function that's slower/nastier
@@ -140,7 +154,7 @@ JsVarFloat jswrap_math_abs(JsVarFloat x) {
   "ifndef" : "SAVE_ON_FLASH_EXTREME",
   "class" : "Math",
   "name" : "acos",
-  "generate_full" : "jswrap_math_atan(jswrap_math_sqrt(1-x*x) / x)",
+  "generate_full" : "(PI/2) - jswrap_math_asin(x)",
   "params" : [
     ["x","float","The value to get the arc cosine of"]
   ],
@@ -151,12 +165,15 @@ JsVarFloat jswrap_math_abs(JsVarFloat x) {
   "ifndef" : "SAVE_ON_FLASH_EXTREME",
   "class" : "Math",
   "name" : "asin",
-  "generate_full" : "jswrap_math_atan(x / jswrap_math_sqrt(1-x*x))",
+  "generate" : "jswrap_math_asin",
   "params" : [
     ["x","float","The value to get the arc sine of"]
   ],
   "return" : ["float","The arc sine of x, between -PI/2 and PI/2"]
 }*/
+JsVarFloat jswrap_math_asin(JsVarFloat x) {
+  return jswrap_math_atan(x / jswrap_math_sqrt(1-x*x));
+}
 /*JSON{
   "type" : "staticmethod",
   "class" : "Math",

@@ -15,6 +15,9 @@
 #ifndef BLUETOOTH_H
 #define BLUETOOTH_H
 
+#ifdef NRF5X
+#include "app_config.h"
+#endif
 #include "jsdevices.h"
 
 #ifdef NRF5X
@@ -25,6 +28,12 @@
 #include "ble.h"
 #endif
 #include "ble_advdata.h"
+
+/* Check for errors when in an IRQ, when we're pretty sure an error won't
+ * cause a hard reset. Error is then reported outside of the IRQ without
+ * rebooting Espruino. */
+#define APP_ERROR_CHECK_NOT_URGENT(ERR_CODE) if (ERR_CODE) { uint32_t line = __LINE__; jsble_queue_pending_buf(BLEP_ERROR, ERR_CODE, (char*)&line, 4); }
+
 #else
 typedef struct {
   uint16_t uuid;
@@ -47,6 +56,7 @@ typedef struct {
 #define BLE_GAP_AD_TYPE_128BIT_SERVICE_UUID_MORE_AVAILABLE  0x06
 #define BLE_GAP_AD_TYPE_128BIT_SERVICE_UUID_COMPLETE        0x07
 #define BLE_GAP_AD_TYPE_SERVICE_DATA                        0x16
+#define BLE_GAP_AD_TYPE_SERVICE_DATA_128BIT_UUID            0x21
 #define BLE_GAP_AD_TYPE_SHORT_LOCAL_NAME                    0x08
 #define BLE_GAP_AD_TYPE_COMPLETE_LOCAL_NAME                 0x09
 #define BLE_GAP_AD_TYPE_MANUFACTURER_SPECIFIC_DATA          0xFF
@@ -77,8 +87,9 @@ typedef struct {
 #define HID_MODIFIER_KEY_POS                 0                                       /**< Position of the modifier byte in the Input Report. */
 #define HID_SCAN_CODE_POS                    2                                       /**< This macro indicates the start position of the key scan code in a HID Report. As per the document titled 'Device Class Definition for Human Interface Devices (HID) V1.11, each report shall have one modifier byte followed by a reserved constant byte and then the key scan code. */
 
-#define DEFAULT_ADVERTISING_INTERVAL    MSEC_TO_UNITS(375, UNIT_0_625_MS)           /**< The advertising interval (in units of 0.625 ms). */
-
+#ifndef BLUETOOTH_ADVERTISING_INTERVAL
+#define BLUETOOTH_ADVERTISING_INTERVAL 375
+#endif
 
 typedef enum  {
   BLE_NONE = 0,
@@ -99,10 +110,13 @@ typedef enum  {
   BLE_WHITELIST_ON_BOND = 8192,  //< Should we write to the whitelist whenever we bond to a device?
   BLE_DISABLE_DYNAMIC_INTERVAL = 16384, //< Disable automatically changing interval based on BLE peripheral activity
   BLE_ENCRYPT_UART = 32768,  //< Has security with encryption been requested (if so UART must require it)
+#ifdef ESPR_BLUETOOTH_ANCS
+  BLE_ANCS_INITED = 65536,   //< Apple Notification Centre enabled
+#endif
 
-  BLE_IS_ADVERTISING_MULTIPLE = 65536, // We have multiple different advertising packets
-  BLE_ADVERTISING_MULTIPLE_ONE = 131072,
-  BLE_ADVERTISING_MULTIPLE_SHIFT = 17,//GET_BIT_NUMBER(BLE_ADVERTISING_MULTIPLE_ONE),
+  BLE_IS_ADVERTISING_MULTIPLE = 131072, // We have multiple different advertising packets
+  BLE_ADVERTISING_MULTIPLE_ONE = 262144,
+  BLE_ADVERTISING_MULTIPLE_SHIFT = 18,//GET_BIT_NUMBER(BLE_ADVERTISING_MULTIPLE_ONE),
   BLE_ADVERTISING_MULTIPLE_MASK = 255 << BLE_ADVERTISING_MULTIPLE_SHIFT,
 
   /// These are flags that should be reset when the softdevice starts up
@@ -139,7 +153,10 @@ typedef enum {
   BLEP_NOTIFICATION,                //< A characteristic we were watching has changes
   BLEP_TASK_PASSKEY_DISPLAY,        //< We're pairing and have been provided with a passkey to display
   BLEP_TASK_AUTH_KEY_REQUEST,       //< We're pairing and the device wants a passkey from us
-  BLEP_TASK_AUTH_STATUS             //< Data on how authentication was going has been received
+  BLEP_TASK_AUTH_STATUS,            //< Data on how authentication was going has been received
+#ifdef ESPR_BLUETOOTH_ANCS
+  BLEP_ANCS_NOTIF,                  //< Apple Notification Centre notification received
+#endif
 } BLEPending;
 
 
@@ -152,8 +169,8 @@ extern volatile uint16_t                         m_central_conn_handle; /**< Han
 
 /** Initialise the BLE stack */
 void jsble_init();
-/** Completely deinitialise the BLE stack */
-void jsble_kill();
+/** Completely deinitialise the BLE stack. Return true on success */
+bool jsble_kill();
 /** Add a task to the queue to be executed (to be called mainly from IRQ-land) - with a buffer of data */
 void jsble_queue_pending_buf(BLEPending blep, uint16_t data, char *ptr, size_t len);
 /** Add a task to the queue to be executed (to be called mainly from IRQ-land) - with simple data */
@@ -162,8 +179,9 @@ void jsble_queue_pending(BLEPending blep, uint16_t data);
 int jsble_exec_pending(IOEvent *event);
 
 /** Stop and restart the softdevice so that we can update the services in it -
- * both user-defined as well as UART/HID */
-void jsble_restart_softdevice();
+ * both user-defined as well as UART/HID. If jsFunction is a function it is
+ * called when the softdevice is uninitialised. */
+void jsble_restart_softdevice(JsVar *jsFunction);
 
 uint32_t jsble_advertising_start();
 uint32_t jsble_advertising_update_advdata(char *dPtr, unsigned int dLen);
@@ -277,10 +295,12 @@ void jsble_central_startBonding(bool forceRePair);
 JsVar *jsble_central_getSecurityStatus();
 /// RSSI monitoring in central mode
 uint32_t jsble_set_central_rssi_scan(bool enabled);
-/// Set whether or not the whitelist is enabled
-void jsble_central_setWhitelist(bool whitelist);
 /// Send a passkey if one was requested (passkey = 6 bytes long)
 uint32_t jsble_central_send_passkey(char *passkey);
+#endif
+#if PEER_MANAGER_ENABLED
+/// Set whether or not the whitelist is enabled
+void jsble_central_setWhitelist(bool whitelist);
 #endif
 
 #endif // BLUETOOTH_H

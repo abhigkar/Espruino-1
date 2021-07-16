@@ -309,7 +309,8 @@ codeOut("");
 
 codeOut("#define CLOCK_SPEED_MHZ                      "+str(board.chip["speed"]))
 codeOut("#define USART_COUNT                          "+str(board.chip["usart"]))
-codeOut("#define SPI_COUNT                            "+str(board.chip["spi"]))
+if "spi" in board.chip:
+  codeOut("#define SPI_COUNT                            "+str(board.chip["spi"]))
 codeOut("#define I2C_COUNT                            "+str(board.chip["i2c"]))
 codeOut("#define ADC_COUNT                            "+str(board.chip["adc"]))
 codeOut("#define DAC_COUNT                            "+str(board.chip["dac"]))
@@ -378,8 +379,12 @@ if "LCD" in board.devices:
     codeOut("#define LCD_HEIGHT "+str(board.devices["LCD"]["height"]))
   if "bpp" in board.devices["LCD"]:
     codeOut("#define LCD_BPP "+str(board.devices["LCD"]["bpp"]))
+  if "bitrate" in board.devices["LCD"]:
+    codeOut("#define LCD_SPI_BITRATE "+str(board.devices["LCD"]["bitrate"]))
   if "pin_bl" in board.devices["LCD"]:
     codeOutDevicePin("LCD", "pin_bl", "LCD_BL")
+  if "pin_en" in board.devices["LCD"]:
+    codeOutDevicePin("LCD", "pin_en", "LCD_EN")
   if board.devices["LCD"]["controller"]=="fsmc":
     for i in range(0,16):
       codeOutDevicePin("LCD", "pin_d"+str(i), "LCD_FSMC_D"+str(i))
@@ -390,14 +395,23 @@ if "LCD" in board.devices:
       codeOutDevicePin("LCD", "pin_rs", "LCD_FSMC_RS")
     if "pin_reset" in board.devices["LCD"]:
       codeOutDevicePin("LCD", "pin_reset", "LCD_RESET")
-  if board.devices["LCD"]["controller"]=="ssd1306" or board.devices["LCD"]["controller"]=="st7567" or board.devices["LCD"]["controller"]=="st7789v" or board.devices["LCD"]["controller"]=="st7735":
+  if board.devices["LCD"]["controller"]=="ssd1306" or board.devices["LCD"]["controller"]=="st7567" or board.devices["LCD"]["controller"]=="st7789v" or board.devices["LCD"]["controller"]=="st7735" or board.devices["LCD"]["controller"]=="gc9a01":
     codeOutDevicePin("LCD", "pin_mosi", "LCD_SPI_MOSI")
     codeOutDevicePin("LCD", "pin_sck", "LCD_SPI_SCK")
     codeOutDevicePin("LCD", "pin_cs", "LCD_SPI_CS")
     codeOutDevicePin("LCD", "pin_dc", "LCD_SPI_DC")
     codeOutDevicePin("LCD", "pin_rst", "LCD_SPI_RST")
-  if "pin_bl" in board.devices["LCD"]:
-    codeOutDevicePin("LCD", "pin_bl", "LCD_BL")
+  if board.devices["LCD"]["controller"]=="LPM013M126":
+    codeOutDevicePin("LCD", "pin_mosi", "LCD_SPI_MOSI")
+    codeOutDevicePin("LCD", "pin_sck", "LCD_SPI_SCK")
+    codeOutDevicePin("LCD", "pin_cs", "LCD_SPI_CS")
+    codeOutDevicePin("LCD", "pin_disp", "LCD_DISP")
+    codeOutDevicePin("LCD", "pin_extcomin", "LCD_EXTCOMIN")
+  if "pin_miso" in board.devices["LCD"]:
+    codeOutDevicePin("LCD", "pin_miso", "LCD_SPI_MISO")
+  if "pin_tearing" in board.devices["LCD"]:
+    codeOutDevicePin("LCD", "pin_tearing", "LCD_TEARING")
+
   if board.devices["LCD"]["controller"]=="st7789_8bit":
     codeOutDevicePins("LCD","LCD");
 
@@ -441,11 +455,13 @@ if "GPS" in board.devices:
 
 if "ACCEL" in board.devices:
   codeOut("#define ACCEL_DEVICE \""+board.devices["ACCEL"]["device"].upper()+"\"")
+  codeOut("#define ACCEL_DEVICE_"+board.devices["ACCEL"]["device"].upper())
   codeOut("#define ACCEL_ADDR "+str(board.devices["ACCEL"]["addr"]))
   codeOutDevicePins("ACCEL", "ACCEL")
 
 if "MAG" in board.devices:
   codeOut("#define MAG_DEVICE \""+board.devices["MAG"]["device"].upper()+"\"")
+  codeOut("#define MAG_DEVICE_"+board.devices["MAG"]["device"].upper())
   if "addr" in board.devices["MAG"]:
     codeOut("#define MAG_ADDR "+str(board.devices["MAG"]["addr"]))
   codeOutDevicePins("MAG", "MAG")
@@ -457,8 +473,14 @@ if "TEMP" in board.devices:
 
 if "PRESSURE" in board.devices:
   codeOut("#define PRESSURE_DEVICE \""+board.devices["PRESSURE"]["device"].upper()+"\"")
+  codeOut("#define PRESSURE_DEVICE_"+board.devices["PRESSURE"]["device"].upper())
   codeOut("#define PRESSURE_ADDR "+str(board.devices["PRESSURE"]["addr"]))
   codeOutDevicePins("PRESSURE", "PRESSURE")
+
+if "TOUCH" in board.devices:
+  codeOut("#define TOUCH_DEVICE \""+board.devices["TOUCH"]["device"].upper()+"\"")
+  codeOut("#define TOUCH_ADDR "+str(board.devices["TOUCH"]["addr"]))
+  codeOutDevicePins("TOUCH", "TOUCH")
 
 if "SPIFLASH" in board.devices:
   codeOut("#define SPIFLASH_PAGESIZE 4096")
@@ -466,8 +488,7 @@ if "SPIFLASH" in board.devices:
   codeOut("#define SPIFLASH_BASE "+str(board.devices["SPIFLASH"]["memmap_base"])+"UL")
   codeOutDevicePins("SPIFLASH", "SPIFLASH")
 
-#for device in ["USB","SD","LCD","JTAG","ESP8266","IR","GPS","ACCEL","MAG","TEMP","PRESSURE","SPIFLASH"]:
-for device in ["USB","SD","LCD","JTAG","ESP8266","IR"]:
+for device in pinutils.OTHER_DEVICES:
   if device in board.devices:
     for entry in board.devices[device]:
       if entry[:3]=="pin": usedPinChecks.append("(PIN)==" + toPinDef(board.devices[device][entry])+"/* "+device+" */")
@@ -490,8 +511,9 @@ codeOut("")
 codeOut("// definition to avoid compilation when Pin/platform config is not defined")
 codeOut("#define IS_PIN_USED_INTERNALLY(PIN) (("+")||(".join(usedPinChecks)+"))")
 codeOut("#define IS_PIN_A_LED(PIN) (("+")||(".join(ledChecks)+"))")
+codeOut("#ifndef IS_PIN_A_BUTTON")
 codeOut("#define IS_PIN_A_BUTTON(PIN) (("+")||(".join(btnChecks)+"))")
-
+codeOut("#endif")
 
 codeOut("""
 #endif // _PLATFORM_CONFIG_H

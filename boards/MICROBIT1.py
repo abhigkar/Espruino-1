@@ -16,7 +16,7 @@
 import pinutils;
 # placeholder
 info = {
- 'name' : "BBC micro:bit",
+ 'name' : "BBC micro:bit 1",
  'link' : [ "https://en.wikipedia.org/wiki/Micro_Bit" ],
  'espruino_page_link' : 'MicroBit',
  'default_console' : "EV_SERIAL1",
@@ -24,7 +24,7 @@ info = {
  'default_console_rx' : "H1", # pin 25
  'default_console_baudrate' : "9600",
  'variables' : 300,
- 'binary_name' : 'espruino_%v_microbit.hex',
+ 'binary_name' : 'espruino_%v_microbit1.hex',
  'build' : {
    'optimizeflags' : '-Os',
    'libraries' : [
@@ -34,12 +34,16 @@ info = {
    'makefile' : [
      'SAVE_ON_FLASH=1',
      'DEFINES+=-DSAVE_ON_FLASH_EXTREME',
+     'CFLAGS += -ffreestanding', # needed for SAVE_ON_FLASH_EXTREME (jswrap_math, __aeabi_dsub)
+     'BLACKLIST=boards/MICROBIT1.blocklist', # force some stuff to be removed to save space
      'DEFINES+=-DCONFIG_GPIO_AS_PINRESET', # Allow the reset pin to work
+     'DEFINES += -DMICROBIT', # enable microbit-specific stuff
      'DEFINES+=-DNO_DUMP_HARDWARE_INITIALISATION', # don't dump hardware init - not used and saves a bunch of flash
      'DEFINES+=-DUSE_TAB_COMPLETE',
 #     'DEFINES+=-DUSE_DEBUGGER', # Removed  due to firmware size issues
      'INCLUDE += -I$(ROOT)/libs/microbit',
-     'WRAPPERSOURCES += libs/microbit/jswrap_microbit.c'
+     'WRAPPERSOURCES += libs/microbit/jswrap_microbit.c',
+     
    ]
  }
 };
@@ -92,7 +96,7 @@ board["_css"] = """
   height: 562px;
   top: 0px;
   left : 0px;
-  background-image: url(img/MICROBIT.jpg);
+  background-image: url(img/MICROBIT1.jpg);
 }
 #boardcontainer {
   height: 700px;

@@ -22,6 +22,7 @@
 #include "jswrap_bluetooth.h"
 #include "bluetooth.h"
 #include "jsutils.h"
+#include "jsparse.h"
 
 #include "BLE/esp32_gap_func.h"
 #include "BLE/esp32_gatts_func.h"
@@ -57,9 +58,10 @@ void jsble_init(){
 		jsWarn("Bluetooth is disabled per ESP32.enableBLE(false)\n");
 	}
 }
-/** Completely deinitialise the BLE stack */
-void jsble_kill(){
+/** Completely deinitialise the BLE stack. Return true on success */
+bool jsble_kill(){
 	jsWarn("kill not implemented yet\n");
+  return true;
 }
 
 void jsble_queue_pending_buf(BLEPending blep, uint16_t data, char *ptr, size_t len){
@@ -82,11 +84,13 @@ int jsble_exec_pending(IOEvent *event){
 	return 0;
 }
 
-void jsble_restart_softdevice(){
+void jsble_restart_softdevice(JsVar *jsFunction){
 	bleStatus &= ~(BLE_NEEDS_SOFTDEVICE_RESTART | BLE_SERVICES_WERE_SET);
 	if (bleStatus & BLE_IS_SCANNING) {
 		bluetooth_gap_setScan(false);
 	}
+	if (jsvIsFunction(jsFunction))
+	  jspExecuteFunction(jsFunction,NULL,0,NULL);
 	jswrap_ble_reconfigure_softdevice();
 }
 

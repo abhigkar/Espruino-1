@@ -58,8 +58,8 @@ if "check_output" not in dir( subprocess ):
 #                      // class = built-in class that does not require instantiation
 #                      // library = built-in class that needs require('classname')
 #                      // idle = function to run on idle regardless
-#                      // init = function to run on initialisation
-#                      // kill = function to run on deinitialisation
+#                      // init = function to run on Initialisation (eg boot/load/reset/after save/etc)
+#                      // kill = function to run on Deinitialisation (eg before save/reset/etc)
 #                      // EV_xxx = Something to be called with a character in an IRQ when it is received (eg. EV_SERIAL1)
 #         "class" : "Double", "name" : "doubleToIntBits",
 #         "needs_parentName":true,           // optional - if for a method, this makes the first 2 args parent+parentName (not just parent)
@@ -84,6 +84,8 @@ if "check_output" not in dir( subprocess ):
 #         "ifndef" : "SAVE_ON_FLASH", // if the given preprocessor macro is defined, don't implement this
 #         "ifdef" : "USE_LCD_FOO", // if the given preprocessor macro isn't defined, don't implement this
 #         "#if" : "A>2", // add a #if statement in the generated C file (ONLY if type==object)
+#         "patch" : true, // if true, this isn't a complete JSON, but just updates another with the same class+name
+#         "sortorder" : 0 // default to 0, but all items are sorted by this first, so especially with jswrap_X_init/etc we can ensure the ordering is correct
 #}*/
 #
 # description can be an array of strings as well as a simple string (in which case each element is separated by a newline),
@@ -235,6 +237,13 @@ def get_jsondata(is_for_document, parseArgs = True, board = False):
               if not r:
                 print(dropped_prefix+" because of #if "+jsondata["#if"]+ " -> "+expr)
                 drop = True
+          if not drop and "patch" in jsondata:
+            targetjsondata = [x for x in jsondatas if x["type"]==jsondata["type"] and x["class"]==jsondata["class"] and x["name"]==jsondata["name"]][0]
+            for key in jsondata:
+               if not key in ["type","class","name","patch"]:
+                 print("Copying "+key+" --- "+jsondata[key]);
+                 targetjsondata[key] = jsondata[key]
+            drop = True 
           if not drop:
             jsondatas.append(jsondata)
         except ValueError as e:
@@ -247,7 +256,7 @@ def get_jsondata(is_for_document, parseArgs = True, board = False):
 
     if board:
       for device in pinutils.SIMPLE_DEVICES:
-        if device in board.devices:
+        if device in board.devices and not "novariable" in board.devices[device]:
           jsondatas.append({
             "type" : "variable",
             "name" : device,
@@ -256,7 +265,7 @@ def get_jsondata(is_for_document, parseArgs = True, board = False):
             "filename" : "BOARD.py",
             "include" : "platform_config.h"
           })
-      if "LED1" in board.devices:
+      if "LED1" in board.devices and not "novariable" in board.devices["LED1"]:
         jsondatas.append({
           "type" : "variable",
           "name" : "LED",
@@ -265,7 +274,7 @@ def get_jsondata(is_for_document, parseArgs = True, board = False):
           "filename" : "BOARD.py",
           "include" : "platform_config.h"
         })
-      if "BTN1" in board.devices:
+      if "BTN1" in board.devices and not "novariable" in board.devices["BTN1"]:
         jsondatas.append({
           "type" : "variable",
           "name" : "BTN",
@@ -274,6 +283,9 @@ def get_jsondata(is_for_document, parseArgs = True, board = False):
           "filename" : "BOARD.py",
           "include" : "platform_config.h"
         })
+
+    jsondatas = sorted(jsondatas, key=lambda j: j["sortorder"] if "sortorder" in j else 0) 
+
     return jsondatas
 
 # Takes the data from get_jsondata and restructures it in prepartion for output as JS
@@ -408,10 +420,12 @@ def get_ifdef_description(d):
   if d=="ESPRUINOBOARD": return "'Original' Espruino boards"
   if d=="PICO": return "Espruino Pico boards"
   if d=="BANGLEJS": return "Bangle.js smartwatches"
+  if d=="SMAQ3": return "SMAQ3 smartwatches"
   if d=="ESP8266": return "ESP8266 boards running Espruino"
   if d=="ESP32": return "ESP32 boards"
   if d=="EFM32": return "EFM32 devices"
   if d=="MICROBIT": return "BBC micro:bit boards"
+  if d=="MICROBIT2": return "BBC micro:bit v2 boards"
   if d=="USE_LCD_SDL": return "Linux with SDL support compiled in"
   if d=="USE_TLS": return "devices with TLS and SSL support (Espruino Pico and Espruino WiFi only)"
   if d=="RELEASE": return "release builds"

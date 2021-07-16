@@ -65,7 +65,7 @@ void jswrap_ble_reconfigure_softdevice();
 void jswrap_ble_disconnect();
 void jswrap_ble_sleep();
 void jswrap_ble_wake();
-void jswrap_ble_restart();
+void jswrap_ble_restart(JsVar *callback);
 JsVar *jswrap_ble_getAddress();
 void jswrap_ble_setAddress(JsVar *address);
 
@@ -92,7 +92,8 @@ void jswrap_nfc_raw(JsVar *payload);
 JsVar *jswrap_nfc_start(JsVar *payload);
 void jswrap_nfc_stop();
 void jswrap_nfc_send(JsVar *payload);
-void jswrap_ble_sendHIDReport(JsVar *data, JsVar *callback);
+void jswrap_ble_sendHIDReport(JsVar *data, JsVar *callback); // BLE_HIDS_ENABLED
+void jswrap_ble_sendANCSAction(int uid, bool positive); // if ESPR_BLUETOOTH_ANCS
 
 JsVar *jswrap_ble_requestDevice(JsVar *options);
 JsVar *jswrap_ble_connect(JsVar *mac, JsVar *options);
