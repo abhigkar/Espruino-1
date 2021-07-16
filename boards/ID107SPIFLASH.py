@@ -37,7 +37,15 @@ info = {
      #'DEFINES+=-DCONFIG_GPIO_AS_PINRESET', # Allow the reset pin to work
      'DEFINES+=-DBLUETOOTH_NAME_PREFIX=\'"Espruino-107"\'',
      'DEFINES+=-DBLE_HIDS_ENABLED=1',
-      'DFU_SETTINGS=--sd-req 129,136 --dev-type 572 --dev-revision 0x64'
+     'DFU_SETTINGS=--sd-req 129,136 --dev-type 572 --dev-revision 0x64', ## TODO change for ID107 HR plus
+     'JSMODULESOURCES+=libs/js/id107/Font6x8.min.js',
+     'JSMODULESOURCES+=libs/js/id107/Font6x12.min.js',
+     'JSMODULESOURCES+=libs/js/id107/Font8x12.min.js',
+     'JSMODULESOURCES+=libs/js/id107/Font8x16.min.js',
+     'JSMODULESOURCES+=libs/js/id107/GoodTime18x19.min.js',
+     'JSMODULESOURCES+=libs/js/id107/iqs263v2.js',
+     'JSMODULESOURCES+=libs/js/id107/oled.js',
+     'JSMODULESOURCES+=libs/js/id107/si1142v4.js',
    ]
  }
 };
@@ -55,15 +63,23 @@ chip = {
   'i2c' : 1,
   'adc' : 1,
   'dac' : 0,
-   'saved_code' : {
-    'address' : ((118 - 20) * 4096), # Bootloader takes pages 120-127, FS takes 118-119
+  'saved_code' : {
+    'address' : 0x60000000, # put this in external flash
     'page_size' : 4096,
-    'pages' : 20,
-    'flash_available' : 512 - ((28 + 8 + 2 + 20)*4) # Softdevice uses 28 pages of flash, bootloader 8, FS 2, code 20. Each page is 4 kb.
+    'pages' : 256, # 1024kb - still loads left
+    'flash_available' : 512 - ((28 + 8 + 2)*4) # Softdevice uses 28 pages of flash, bootloader 8, FS 2. Each page is 4 kb.
   },
 };
 
 devices = {
+  'SPIFLASH' : {
+            'pin_cs' : 'D28',
+            'pin_sck' : 'D30',
+            'pin_mosi' : 'D31', # D0
+            'pin_miso' : 'D27', # D1
+            'size' : 1024*1024, # 1MB
+            'memmap_base' : 0x60000000 # map into the address space (in software)
+          }
 };
 
 # left-right, or top-bottom order
